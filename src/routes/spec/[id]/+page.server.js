@@ -1,14 +1,15 @@
 import { getSpecsCollection } from '$lib/server/db';
 import { ObjectId } from 'mongodb';
 import { error, redirect, fail } from '@sveltejs/kit';
-import { generateSpec } from '$lib/server/gemini';
+import { generateSpecWithRetry } from '$lib/server/gemini';
 
+/** @type {import('./$types').PageServerLoad} */
 export const load = async ({ params, locals }) => {
     const session = await locals.auth();
     if (!session?.user) {
         throw redirect(303, "/");
     }
-    const userId = session.user.email;
+    const userId = session.user.email || 'anonymous';
 
     const specsColl = await getSpecsCollection();
     let spec;
@@ -32,37 +33,71 @@ export const load = async ({ params, locals }) => {
     const getAiGeneratedContent = async () => {
         if (!spec.isPending) return null;
 
-        const generated = await generateSpec({
-            goal: spec.goal,
-            users: spec.users,
-            constraints: spec.constraints,
-            template: spec.template
-        });
+        // If we are in a delayed retry state, don't trigger AI yet
+        const now = new Date();
+        if (spec.nextRetryAt && new Date(spec.nextRetryAt) > now) {
+            return {
+                isDelayed: true,
+                nextRetryAt: spec.nextRetryAt
+            };
+        }
 
-        const tasksWithIds = generated.tasks.map(t => ({
-            ...t,
-            id: Math.random().toString(36).substr(2, 9)
-        }));
+        try {
+            const generated = await generateSpecWithRetry({
+                goal: spec.goal,
+                users: spec.users,
+                constraints: spec.constraints,
+                template: spec.template
+            });
 
-        // Update DB in background
-        await specsColl.updateOne(
-            { _id: new ObjectId(params.id) },
-            {
-                $set: {
-                    userStories: generated.user_stories,
-                    tasks: tasksWithIds,
-                    risks: generated.risks,
-                    isPending: false,
-                    updatedAt: new Date()
+            const tasksWithIds = generated.tasks.map((/** @type {any} */ t) => ({
+                ...t,
+                id: Math.random().toString(36).substr(2, 9)
+            }));
+
+            // Update DB in background
+            await specsColl.updateOne(
+                { _id: new ObjectId(params.id) },
+                {
+                    $set: {
+                        userStories: generated.user_stories,
+                        tasks: tasksWithIds,
+                        risks: generated.risks,
+                        isPending: false,
+                        nextRetryAt: null,
+                        updatedAt: new Date()
+                    }
                 }
-            }
-        );
+            );
 
-        return {
-            userStories: generated.user_stories,
-            tasks: tasksWithIds,
-            risks: generated.risks
-        };
+            return {
+                userStories: generated.user_stories,
+                tasks: tasksWithIds,
+                risks: generated.risks
+            };
+        } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            console.error('Gemini all immediate retries failed, going to delayed state:', message);
+
+            // Set next retry for 5 minutes later
+            const nextRetryAt = new Date(Date.now() + 5 * 60 * 1000);
+
+            await specsColl.updateOne(
+                { _id: new ObjectId(params.id) },
+                {
+                    $set: {
+                        nextRetryAt,
+                        updatedAt: new Date()
+                    }
+                }
+            );
+
+            return {
+                isDelayed: true,
+                nextRetryAt,
+                error: message
+            };
+        }
     };
 
     return {
@@ -73,16 +108,22 @@ export const load = async ({ params, locals }) => {
     };
 };
 
+/**
+ * @type {import('@sveltejs/kit').Actions}
+ */
 export const actions = {
     update: async ({ request, params, locals }) => {
         const session = await locals.auth();
         if (!session?.user) {
             return fail(401, { error: 'Unauthorized' });
         }
-        const userId = session.user.email;
+        const userId = session.user.email || 'anonymous';
 
-        const data = await request.formData();
-        const updatedSpec = JSON.parse(data.get('spec'));
+        const formData = await request.formData();
+        const specJson = formData.get('spec');
+        if (typeof specJson !== 'string') return fail(400, { error: 'Invalid spec data' });
+
+        const updatedSpec = JSON.parse(specJson);
 
         const specsColl = await getSpecsCollection();
 

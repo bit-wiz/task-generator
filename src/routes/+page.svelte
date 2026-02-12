@@ -23,7 +23,7 @@
             <span
                 class="bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-400"
             >
-                with Gemini AI
+                with AI
             </span>
         </h1>
         <p

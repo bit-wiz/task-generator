@@ -1,7 +1,10 @@
 import { redirect, fail } from '@sveltejs/kit';
-import { generateSpec } from '$lib/server/gemini';
 import { getSpecsCollection } from '$lib/server/db';
 
+
+/**
+ * @type {import('@sveltejs/kit').Actions}
+ */
 export const actions = {
     default: async ({ request, locals }) => {
         const session = await locals.auth();

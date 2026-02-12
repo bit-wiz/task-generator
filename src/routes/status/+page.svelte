@@ -49,12 +49,10 @@
         >
             <div class="flex items-center gap-6">
                 <div class="p-4 bg-green-500/10 rounded-2xl text-green-400">
-                    <Database class="w-10 h-10" />
+                    <Activity class="w-10 h-10" />
                 </div>
                 <div>
-                    <h3 class="text-xl font-bold text-white mb-1">
-                        MongoDB Atlas
-                    </h3>
+                    <h3 class="text-xl font-bold text-white mb-1">Server</h3>
                     <p class="text-gray-400">
                         Primary persistence store for feature specs.
                     </p>
@@ -105,7 +103,7 @@
                 </div>
                 <div>
                     <h3 class="text-xl font-bold text-white mb-1">
-                        Gemini 1.5 Flash
+                        AI - service
                     </h3>
                     <p class="text-gray-400">
                         AI powerhouse for plan generation.
@@ -148,7 +146,7 @@
         </div>
 
         <!-- Backend Server -->
-        <div
+        <!-- <div
             class="bg-gray-900/40 border border-gray-800 p-8 rounded-3xl flex items-center justify-between backdrop-blur-sm"
         >
             <div class="flex items-center gap-6">
@@ -172,6 +170,6 @@
                     Running
                 </span>
             </div>
-        </div>
+        </div> -->
     </div>
 </div>

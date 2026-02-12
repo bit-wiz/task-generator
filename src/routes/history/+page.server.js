@@ -1,6 +1,7 @@
 import { getSpecsCollection } from '$lib/server/db';
 import { redirect } from '@sveltejs/kit';
 
+/** @type {import('./$types').PageServerLoad} */
 export const load = async ({ locals }) => {
     const session = await locals.auth();
     if (!session?.user) {

@@ -2,6 +2,9 @@ import { getDbClient } from '$lib/server/db';
 import { GEMINI_API_KEY } from '$env/static/private';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
+/**
+ * @type {import('@sveltejs/kit').Load}
+ */
 export const load = async () => {
     const checkMongo = async () => {
         try {
