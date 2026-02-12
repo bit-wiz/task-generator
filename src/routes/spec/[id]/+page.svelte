@@ -28,6 +28,39 @@
 
     const flipDurationMs = 300;
 
+    // Categorized task lists for Kanban view
+    let frontendTasks = $state([]);
+    let backendTasks = $state([]);
+    let testingTasks = $state([]);
+
+    // Sync individual lists back to the main spec.tasks
+    function syncToSpec() {
+        spec.tasks = [
+            ...frontendTasks.map((t) => ({ ...t, group: "frontend" })),
+            ...backendTasks.map((t) => ({ ...t, group: "backend" })),
+            ...testingTasks.map((t) => ({ ...t, group: "testing" })),
+        ];
+    }
+
+    // Initialize lists from spec.tasks
+    function initializeLists() {
+        frontendTasks = spec.tasks.filter((t) => t.group === "frontend");
+        backendTasks = spec.tasks.filter((t) => t.group === "backend");
+        testingTasks = spec.tasks.filter((t) => t.group === "testing");
+    }
+
+    // Run on initial load and whenever AI generation finishes
+    $effect(() => {
+        if (
+            !spec.isPending &&
+            frontendTasks.length === 0 &&
+            backendTasks.length === 0 &&
+            testingTasks.length === 0
+        ) {
+            initializeLists();
+        }
+    });
+
     // Countdown logic for delayed retries
     let timeLeft = $state(0);
     let timerInterval = null;
@@ -55,31 +88,35 @@
         return `${mins}:${secs.toString().padStart(2, "0")}`;
     }
 
-    function handleDndConsider(e) {
-        spec.tasks = e.detail.items;
+    // DnD handlers for each zone
+    function handleDnd(group, type, e) {
+        const { items } = e.detail;
+        if (group === "frontend") frontendTasks = items;
+        if (group === "backend") backendTasks = items;
+        if (group === "testing") testingTasks = items;
+
+        if (type === "finalize") {
+            syncToSpec();
+        }
     }
 
-    function handleDndFinalize(e) {
-        spec.tasks = e.detail.items;
-    }
-
-    function addTask() {
-        spec.tasks = [
-            ...spec.tasks,
-            {
-                id: Math.random().toString(36).substr(2, 9),
-                title: "New task",
-                group: "frontend",
-            },
-        ];
+    function addTask(group = "frontend") {
+        const newTask = {
+            id: Math.random().toString(36).substr(2, 9),
+            title: "New task",
+            group,
+        };
+        if (group === "frontend") frontendTasks = [...frontendTasks, newTask];
+        if (group === "backend") backendTasks = [...backendTasks, newTask];
+        if (group === "testing") testingTasks = [...testingTasks, newTask];
+        syncToSpec();
     }
 
     function removeTask(id) {
-        spec.tasks = spec.tasks.filter((t) => t.id !== id);
-    }
-
-    function updateTaskGroup(id, group) {
-        spec.tasks = spec.tasks.map((t) => (t.id === id ? { ...t, group } : t));
+        frontendTasks = frontendTasks.filter((t) => t.id !== id);
+        backendTasks = backendTasks.filter((t) => t.id !== id);
+        testingTasks = testingTasks.filter((t) => t.id !== id);
+        syncToSpec();
     }
 
     function addUserStory() {
@@ -98,10 +135,25 @@
         spec.risks = spec.risks.filter((_, i) => i !== index);
     }
 
-    const groupIcons = {
-        frontend: Layout,
-        backend: Server,
-        testing: TestTube,
+    const groupConfig = {
+        frontend: {
+            title: "Frontend",
+            icon: Layout,
+            color: "text-blue-400",
+            bg: "bg-blue-500/10",
+        },
+        backend: {
+            title: "Backend",
+            icon: Server,
+            color: "text-purple-400",
+            bg: "bg-purple-500/10",
+        },
+        testing: {
+            title: "Testing",
+            icon: TestTube,
+            color: "text-green-400",
+            bg: "bg-green-500/10",
+        },
     };
 </script>
 
@@ -123,7 +175,9 @@
                     />
                     Back to History
                 </a>
-                <h1 class="text-4xl font-extrabold tracking-tight text-white">
+                <h1
+                    class="text-4xl font-extrabold tracking-tight text-white line-clamp-1"
+                >
                     {spec.goal}
                 </h1>
                 <div class="flex items-center gap-3">
@@ -133,7 +187,7 @@
                         {spec.template}
                     </span>
                     <span
-                        class="text-gray-600 text-xs font-mono uppercase tracking-widest"
+                        class="text-gray-600 text-xs font-mono uppercase tracking-widest hidden sm:inline"
                         >ID: {spec._id}</span
                     >
                 </div>
@@ -199,18 +253,17 @@
                 </div>
                 <div class="text-center space-y-2">
                     <h2 class="text-2xl font-bold text-white">
-                        Gemini is architecting...
+                        AI is architecting...
                     </h2>
                     <p class="text-gray-500 max-w-sm">
                         Generating user stories, engineering tasks, and risk
-                        assessments for your feature.
+                        assessments.
                     </p>
                 </div>
             </div>
         {:then content}
             <!-- Success/Delayed State -->
             {#if content?.isDelayed}
-                <!-- Patching effect doesn't work here because we use content once. Using onMount logic. -->
                 {(startTimer(content.nextRetryAt), "")}
                 <div
                     class="flex flex-col items-center justify-center py-32 space-y-8"
@@ -229,8 +282,8 @@
                             API Overloaded
                         </h2>
                         <p class="text-gray-400 text-lg">
-                            Gemini is currently busy. We've scheduled a
-                            background retry to ensure your spec is generated.
+                            The AI service is currently busy. Auto-retrying
+                            soon.
                         </p>
 
                         <div
@@ -252,7 +305,6 @@
                     </div>
                 </div>
             {:else if content}
-                <!-- Local patch -->
                 <div in:fade={{ duration: 800 }}>
                     {((spec.userStories = content.userStories),
                     (spec.tasks = content.tasks),
@@ -263,12 +315,9 @@
             {/if}
 
             {#if !content?.isDelayed}
-                <div
-                    class="grid lg:grid-cols-12 gap-12"
-                    in:fly={{ y: 20, duration: 600 }}
-                >
+                <div class="space-y-16" in:fly={{ y: 20, duration: 600 }}>
                     <!-- Stories & Risks -->
-                    <div class="lg:col-span-4 space-y-12">
+                    <div class="grid lg:grid-cols-2 gap-12">
                         <section class="space-y-6">
                             <div class="flex items-center justify-between">
                                 <h2
@@ -292,7 +341,7 @@
                                     >
                                         <textarea
                                             bind:value={spec.userStories[i]}
-                                            class="w-full bg-gray-900/50 border border-gray-800 hover:border-blue-500/30 rounded-2xl px-6 py-5 text-gray-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all min-h-[120px] resize-none leading-relaxed"
+                                            class="w-full bg-gray-900/40 border border-gray-800 hover:border-blue-500/30 rounded-2xl px-6 py-5 text-gray-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all min-h-[100px] resize-none leading-relaxed"
                                             placeholder="As a user, I want..."
                                         ></textarea>
                                         <button
@@ -344,103 +393,118 @@
                         </section>
                     </div>
 
-                    <!-- Engineering Tasks -->
-                    <div class="lg:col-span-8">
-                        <section
-                            class="bg-gray-900/20 border border-gray-800 rounded-[32px] p-8 md:p-12"
-                        >
-                            <div
-                                class="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10"
-                            >
-                                <h2 class="text-3xl font-extrabold text-white">
-                                    Engineering Tasks
-                                </h2>
-                                <button
-                                    onclick={addTask}
-                                    class="bg-blue-600 hover:bg-blue-500 text-white px-8 py-3 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-500/20"
-                                >
-                                    <Plus class="w-5 h-5" />
-                                    New Task
-                                </button>
-                            </div>
+                    <!-- Engineering Tasks (Kanban Board) -->
+                    <div class="space-y-8">
+                        <div class="flex items-center justify-between">
+                            <h2 class="text-3xl font-extrabold text-white">
+                                Engineering Plan
+                            </h2>
+                        </div>
 
-                            <div
-                                use:dndzone={{
-                                    items: spec.tasks,
-                                    flipDurationMs,
-                                }}
-                                onconsider={handleDndConsider}
-                                onfinalize={handleDndFinalize}
-                                class="space-y-4 min-h-[400px]"
-                            >
-                                {#each spec.tasks as task (task.id)}
+                        <div class="grid lg:grid-cols-3 gap-8">
+                            {#each ["frontend", "backend", "testing"] as group}
+                                {@const config = groupConfig[group]}
+                                {@const tasks =
+                                    group === "frontend"
+                                        ? frontendTasks
+                                        : group === "backend"
+                                          ? backendTasks
+                                          : testingTasks}
+
+                                <div class="space-y-4">
                                     <div
-                                        animate:flip={{
-                                            duration: flipDurationMs,
-                                        }}
-                                        class="flex items-center gap-6 bg-gray-900/80 border border-gray-800 p-6 rounded-2xl group transition-all hover:border-gray-600 hover:bg-gray-900 shadow-sm"
+                                        class="flex items-center justify-between px-2"
                                     >
-                                        <div
-                                            class="cursor-grab text-gray-600 group-hover:text-blue-400 transition-colors"
-                                        >
-                                            <GripVertical class="w-6 h-6 " />
-                                        </div>
-
-                                        <div class="flex-1">
-                                            <input
-                                                bind:value={task.title}
-                                                class="w-full bg-transparent border-none p-0 text-xl font-medium text-white focus:ring-0 placeholder-gray-700"
-                                                placeholder="What needs to be done?"
-                                            />
-                                        </div>
-
                                         <div class="flex items-center gap-3">
                                             <div
-                                                class="flex p-1 bg-black rounded-xl border border-gray-800"
+                                                class={clsx(
+                                                    "p-2 rounded-xl border border-gray-800",
+                                                    config.bg,
+                                                )}
                                             >
-                                                {#each ["frontend", "backend", "testing"] as group}
-                                                    {@const Icon =
-                                                        groupIcons[group]}
+                                                <config.icon
+                                                    class={clsx(
+                                                        "w-5 h-5",
+                                                        config.color,
+                                                    )}
+                                                />
+                                            </div>
+                                            <h3
+                                                class="text-lg font-bold text-white tracking-wide uppercase"
+                                            >
+                                                {config.title}
+                                            </h3>
+                                            <span
+                                                class="text-xs font-mono text-gray-600 bg-gray-900 px-2 py-0.5 rounded-full border border-gray-800"
+                                            >
+                                                {tasks.length}
+                                            </span>
+                                        </div>
+                                        <button
+                                            onclick={() => addTask(group)}
+                                            class="p-2 hover:bg-gray-800 rounded-xl text-gray-500 hover:text-white transition-colors"
+                                        >
+                                            <Plus class="w-5 h-5" />
+                                        </button>
+                                    </div>
+
+                                    <div
+                                        use:dndzone={{
+                                            items: tasks,
+                                            flipDurationMs,
+                                            dropTargetStyle: {
+                                                outline: "2px dashed #3b82f6",
+                                                outlineOffset: "4px",
+                                                borderRadius: "24px",
+                                            },
+                                        }}
+                                        onconsider={(e) =>
+                                            handleDnd(group, "consider", e)}
+                                        onfinalize={(e) =>
+                                            handleDnd(group, "finalize", e)}
+                                        class="bg-gray-900/20 border border-gray-800/50 rounded-[32px] p-4 min-h-[400px] space-y-3 transition-colors hover:border-gray-800"
+                                    >
+                                        {#each tasks as task (task.id)}
+                                            <div
+                                                animate:flip={{
+                                                    duration: flipDurationMs,
+                                                }}
+                                                class="flex flex-col bg-gray-900/60 border border-gray-800 p-5 rounded-2xl group transition-all hover:border-gray-700 hover:bg-gray-900 shadow-sm relative"
+                                            >
+                                                <div
+                                                    class="flex items-start gap-4"
+                                                >
+                                                    <div
+                                                        class="cursor-grab text-gray-700 group-hover:text-blue-500 transition-colors mt-1"
+                                                    >
+                                                        <GripVertical
+                                                            class="w-5 h-5"
+                                                        />
+                                                    </div>
+
+                                                    <textarea
+                                                        bind:value={task.title}
+                                                        class="w-full bg-transparent border-none p-0 text-md font-medium text-white focus:ring-0 placeholder-gray-700 resize-none leading-relaxed"
+                                                        rows="2"
+                                                        oninput={syncToSpec}
+                                                    ></textarea>
+
                                                     <button
                                                         onclick={() =>
-                                                            updateTaskGroup(
-                                                                task.id,
-                                                                group,
-                                                            )}
-                                                        title={group
-                                                            .charAt(0)
-                                                            .toUpperCase() +
-                                                            group.slice(1)}
-                                                        class={clsx(
-                                                            "p-2 rounded-lg transition-all flex items-center gap-2",
-                                                            task.group === group
-                                                                ? "bg-gray-800 text-blue-400 shadow-inner"
-                                                                : "text-gray-600 hover:text-gray-300",
-                                                        )}
+                                                            removeTask(task.id)}
+                                                        class="p-2 text-gray-700 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
                                                     >
-                                                        <Icon class="w-5 h-5" />
-                                                        {#if task.group === group}
-                                                            <span
-                                                                class="text-xs font-bold hidden md:inline"
-                                                                >{group}</span
-                                                            >
-                                                        {/if}
+                                                        <Trash2
+                                                            class="w-4 h-4"
+                                                        />
                                                     </button>
-                                                {/each}
+                                                </div>
                                             </div>
-
-                                            <button
-                                                onclick={() =>
-                                                    removeTask(task.id)}
-                                                class="p-3 text-gray-600 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all"
-                                            >
-                                                <Trash2 class="w-5 h-5" />
-                                            </button>
-                                        </div>
+                                        {/each}
                                     </div>
-                                {/each}
-                            </div>
-                        </section>
+                                </div>
+                            {/each}
+                        </div>
                     </div>
                 </div>
             {/if}
@@ -454,9 +518,7 @@
                 >
                     <AlertCircle class="w-12 h-12 text-red-500" />
                 </div>
-                <h2 class="text-3xl font-bold text-white">
-                    Geneneration Failed
-                </h2>
+                <h2 class="text-3xl font-bold text-white">Generation Failed</h2>
                 <p class="text-gray-400 max-w-md mx-auto">{error.message}</p>
                 <button
                     onclick={() => window.location.reload()}
@@ -468,3 +530,9 @@
         {/await}
     </div>
 </div>
+
+<style>
+    :global(body) {
+        background-color: black;
+    }
+</style>
