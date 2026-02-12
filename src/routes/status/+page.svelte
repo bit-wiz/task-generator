@@ -6,6 +6,7 @@
         CheckCircle2,
         XCircle,
         RefreshCw,
+        Loader2,
     } from "lucide-svelte";
     import { invalidateAll } from "$app/navigation";
 
@@ -51,30 +52,44 @@
                     <Database class="w-10 h-10" />
                 </div>
                 <div>
-                    <h3 class="text-xl font-bold text-white mb-1">
-                        MongoDB Atlas
-                    </h3>
+                    <h3 class="text-xl font-bold text-white mb-1">Database</h3>
                     <p class="text-gray-400">
                         Primary persistence store for feature specs.
                     </p>
                 </div>
             </div>
             <div class="flex items-center gap-2">
-                {#if data.mongoStatus === "ok"}
+                {#await data.streamed.mongoStatus}
                     <span
-                        class="text-green-400 font-bold px-4 py-1.5 bg-green-500/10 rounded-full flex items-center gap-2"
+                        class="text-gray-500 font-bold px-4 py-1.5 bg-gray-500/10 rounded-full flex items-center gap-2"
                     >
-                        <CheckCircle2 class="w-4 h-4" />
-                        Healthy
+                        <Loader2 class="w-4 h-4 animate-spin" />
+                        Checking...
                     </span>
-                {:else}
+                {:then status}
+                    {#if status === "ok"}
+                        <span
+                            class="text-green-400 font-bold px-4 py-1.5 bg-green-500/10 rounded-full flex items-center gap-2"
+                        >
+                            <CheckCircle2 class="w-4 h-4" />
+                            Healthy
+                        </span>
+                    {:else}
+                        <span
+                            class="text-red-400 font-bold px-4 py-1.5 bg-red-500/10 rounded-full flex items-center gap-2"
+                        >
+                            <XCircle class="w-4 h-4" />
+                            Disconnected
+                        </span>
+                    {/if}
+                {:catch}
                     <span
                         class="text-red-400 font-bold px-4 py-1.5 bg-red-500/10 rounded-full flex items-center gap-2"
                     >
                         <XCircle class="w-4 h-4" />
-                        Disconnected
+                        Error
                     </span>
-                {/if}
+                {/await}
             </div>
         </div>
 
@@ -88,7 +103,7 @@
                 </div>
                 <div>
                     <h3 class="text-xl font-bold text-white mb-1">
-                        Gemini 1.5 Flash
+                        AI - service
                     </h3>
                     <p class="text-gray-400">
                         AI powerhouse for plan generation.
@@ -96,21 +111,37 @@
                 </div>
             </div>
             <div class="flex items-center gap-2">
-                {#if data.geminiStatus === "ok"}
+                {#await data.streamed.geminiStatus}
                     <span
-                        class="text-green-400 font-bold px-4 py-1.5 bg-green-500/10 rounded-full flex items-center gap-2"
+                        class="text-gray-500 font-bold px-4 py-1.5 bg-gray-500/10 rounded-full flex items-center gap-2"
                     >
-                        <CheckCircle2 class="w-4 h-4" />
-                        Online
+                        <Loader2 class="w-4 h-4 animate-spin" />
+                        Checking...
                     </span>
-                {:else}
+                {:then status}
+                    {#if status === "ok"}
+                        <span
+                            class="text-green-400 font-bold px-4 py-1.5 bg-green-500/10 rounded-full flex items-center gap-2"
+                        >
+                            <CheckCircle2 class="w-4 h-4" />
+                            Online
+                        </span>
+                    {:else}
+                        <span
+                            class="text-red-400 font-bold px-4 py-1.5 bg-red-500/10 rounded-full flex items-center gap-2"
+                        >
+                            <XCircle class="w-4 h-4" />
+                            Unavailable
+                        </span>
+                    {/if}
+                {:catch}
                     <span
                         class="text-red-400 font-bold px-4 py-1.5 bg-red-500/10 rounded-full flex items-center gap-2"
                     >
                         <XCircle class="w-4 h-4" />
-                        Unavailable
+                        Error
                     </span>
-                {/if}
+                {/await}
             </div>
         </div>
 

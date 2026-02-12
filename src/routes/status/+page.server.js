@@ -2,35 +2,37 @@ import { getDbClient } from '$lib/server/db';
 import { GEMINI_API_KEY } from '$env/static/private';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
+/**
+ * @type {import('@sveltejs/kit').Load}
+ */
 export const load = async () => {
-    let mongoStatus = 'checking';
-    let geminiStatus = 'checking';
-
-    // Check MongoDB
-    try {
-        const client = await getDbClient();
-        await client.db('admin').command({ ping: 1 });
-        mongoStatus = 'ok';
-    } catch (e) {
-        mongoStatus = 'error';
-    }
-
-    // Check Gemini API
-    try {
-        const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-        // Minimal test call
-        const result = await model.generateContent("ping");
-        const response = await result.response;
-        if (response.text()) {
-            geminiStatus = 'ok';
+    const checkMongo = async () => {
+        try {
+            const client = await getDbClient();
+            await client.db('admin').command({ ping: 1 });
+            return 'ok';
+        } catch (e) {
+            return 'error';
         }
-    } catch (e) {
-        geminiStatus = 'error';
-    }
+    };
+
+    const checkGemini = async () => {
+        try {
+            const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+
+            const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+            const result = await model.generateContent("ping");
+            const response = await result.response;
+            return response.text() ? 'ok' : 'error';
+        } catch (e) {
+            return 'error';
+        }
+    };
 
     return {
-        mongoStatus,
-        geminiStatus
+        streamed: {
+            mongoStatus: checkMongo(),
+            geminiStatus: checkGemini()
+        }
     };
 };

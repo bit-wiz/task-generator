@@ -2,6 +2,9 @@ import { getSpecsCollection } from '$lib/server/db';
 import { ObjectId } from 'mongodb';
 import { error } from '@sveltejs/kit';
 
+/**
+ * @type {import('@sveltejs/kit').RequestHandler}
+ */
 export const GET = async ({ params }) => {
     const specsColl = await getSpecsCollection();
     let spec;

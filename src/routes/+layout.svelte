@@ -6,8 +6,11 @@
 		Activity,
 		PlusCircle,
 		Github,
+		LogOut,
+		LogIn,
 	} from "lucide-svelte";
-	let { children } = $props();
+	import { signIn, signOut } from "@auth/sveltekit/client";
+	let { children, data } = $props();
 </script>
 
 <div class="min-h-screen bg-black text-gray-100 selection:bg-blue-500/30">
@@ -30,41 +33,70 @@
 						>
 					</a>
 
-					<div class="hidden md:flex items-center gap-1">
-						<a
-							href="/new"
-							class="px-4 py-2 rounded-xl hover:bg-gray-800 text-sm font-medium transition-colors flex items-center gap-2"
-						>
-							<PlusCircle class="w-4 h-4" />
-							New Spec
-						</a>
-						<a
-							href="/history"
-							class="px-4 py-2 rounded-xl hover:bg-gray-800 text-sm font-medium transition-colors flex items-center gap-2"
-						>
-							<History class="w-4 h-4" />
-							History
-						</a>
-						<a
-							href="/status"
-							class="px-4 py-2 rounded-xl hover:bg-gray-800 text-sm font-medium transition-colors flex items-center gap-2"
-						>
-							<Activity class="w-4 h-4" />
-							Status
-						</a>
-					</div>
+					{#if data.session}
+						<div class="hidden md:flex items-center gap-1">
+							<a
+								href="/new"
+								class="px-4 py-2 rounded-xl hover:bg-gray-800 text-sm font-medium transition-colors flex items-center gap-2"
+							>
+								<PlusCircle class="w-4 h-4" />
+								New Spec
+							</a>
+							<a
+								href="/history"
+								class="px-4 py-2 rounded-xl hover:bg-gray-800 text-sm font-medium transition-colors flex items-center gap-2"
+							>
+								<History class="w-4 h-4" />
+								History
+							</a>
+							<a
+								href="/status"
+								class="px-4 py-2 rounded-xl hover:bg-gray-800 text-sm font-medium transition-colors flex items-center gap-2"
+							>
+								<Activity class="w-4 h-4" />
+								Status
+							</a>
+						</div>
+					{/if}
 				</div>
 
 				<div class="flex items-center gap-4">
+					{#if data.session}
+						<div class="flex items-center gap-3 mr-4">
+							{#if data.session.user?.image}
+								<img
+									src={data.session.user.image}
+									alt={data.session.user?.name || "User"}
+									class="w-8 h-8 rounded-full border border-gray-700"
+								/>
+							{/if}
+							<span
+								class="text-sm font-medium text-gray-300 hidden sm:inline"
+								>{data.session.user?.name || "User"}</span
+							>
+						</div>
+						<button
+							onclick={() => signOut()}
+							class="text-gray-400 hover:text-white transition-colors flex items-center gap-2 text-sm font-medium"
+						>
+							<LogOut class="w-4 h-4" />
+							<span class="hidden sm:inline">Sign Out</span>
+						</button>
+					{:else}
+						<button
+							onclick={() => signIn("google")}
+							class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all"
+						>
+							<LogIn class="w-4 h-4" />
+							Sign In
+						</button>
+					{/if}
 					<a
 						href="https://github.com"
 						target="_blank"
-						class="text-gray-400 hover:text-white transition-colors"
+						class="text-gray-400 hover:text-white transition-colors ml-2"
 					>
 						<Github class="w-5 h-5" />
-					</a>
-					<a href="/new" class="md:hidden p-2 text-gray-400">
-						<PlusCircle class="w-6 h-6" />
 					</a>
 				</div>
 			</div>
@@ -78,7 +110,7 @@
 	<footer class="mt-20 border-t border-gray-800 py-12">
 		<div class="max-w-7xl mx-auto px-4 text-center">
 			<p class="text-gray-500 text-sm">
-				Built with SvelteKit, MongoDB, and Google Gemini.
+				Built with SvelteKit and Google Gemini.
 			</p>
 		</div>
 	</footer>

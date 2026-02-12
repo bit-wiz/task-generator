@@ -5,7 +5,10 @@
         GitBranch,
         ShieldAlert,
         Sparkles,
+        LogIn,
     } from "lucide-svelte";
+    import { signIn } from "@auth/sveltekit/client";
+    let { data } = $props();
 </script>
 
 <div class="relative overflow-hidden pt-16 pb-32">
@@ -20,7 +23,7 @@
             <span
                 class="bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-400"
             >
-                with Gemini AI
+                with AI
             </span>
         </h1>
         <p
@@ -31,21 +34,33 @@
         </p>
 
         <div class="flex items-center justify-center gap-4">
-            <a
-                href="/new"
-                class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 px-10 rounded-2xl transition-all shadow-lg shadow-blue-500/30 flex items-center gap-2 group"
-            >
-                Create New Spec
-                <ArrowRight
-                    class="w-5 h-5 group-hover:translate-x-1 transition-transform"
-                />
-            </a>
-            <a
-                href="/history"
-                class="bg-gray-800 hover:bg-gray-700 text-white font-bold py-4 px-10 rounded-2xl transition-all"
-            >
-                View History
-            </a>
+            {#if data.session}
+                <a
+                    href="/new"
+                    class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 px-10 rounded-2xl transition-all shadow-lg shadow-blue-500/30 flex items-center gap-2 group"
+                >
+                    Create New Spec
+                    <ArrowRight
+                        class="w-5 h-5 group-hover:translate-x-1 transition-transform"
+                    />
+                </a>
+                <a
+                    href="/history"
+                    class="bg-gray-800 hover:bg-gray-700 text-white font-bold py-4 px-10 rounded-2xl transition-all"
+                >
+                    View History
+                </a>
+            {:else}
+                <button
+                    onclick={() => signIn("google")}
+                    class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 px-10 rounded-2xl transition-all shadow-lg shadow-blue-500/30 flex items-center gap-2 group"
+                >
+                    Sign in with Google
+                    <LogIn
+                        class="w-5 h-5 group-hover:translate-x-1 transition-transform"
+                    />
+                </button>
+            {/if}
         </div>
     </div>
 
