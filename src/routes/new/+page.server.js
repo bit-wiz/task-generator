@@ -3,7 +3,13 @@ import { generateSpec } from '$lib/server/gemini';
 import { getSpecsCollection } from '$lib/server/db';
 
 export const actions = {
-    default: async ({ request }) => {
+    default: async ({ request, locals }) => {
+        const session = await locals.auth();
+        if (!session?.user) {
+            return fail(401, { error: 'Unauthorized' });
+        }
+
+        const userId = session.user.email;
         const data = await request.formData();
         const goal = data.get('goal');
         const users = data.get('users');
@@ -17,6 +23,7 @@ export const actions = {
         try {
             const specsColl = await getSpecsCollection();
             const newSpec = {
+                userId,
                 goal,
                 users,
                 constraints,
@@ -32,9 +39,10 @@ export const actions = {
             const result = await specsColl.insertOne(newSpec);
             const insertedId = result.insertedId.toString();
 
-            const allSpecs = await specsColl.find().sort({ createdAt: -1 }).toArray();
-            if (allSpecs.length > 5) {
-                const toDelete = allSpecs.slice(5);
+            // Limit to last 5 specs PER USER
+            const userSpecs = await specsColl.find({ userId }).sort({ createdAt: -1 }).toArray();
+            if (userSpecs.length > 5) {
+                const toDelete = userSpecs.slice(5);
                 const deleteIds = toDelete.map(s => s._id);
                 await specsColl.deleteMany({ _id: { $in: deleteIds } });
             }

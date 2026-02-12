@@ -1,9 +1,15 @@
 import { getSpecsCollection } from '$lib/server/db';
 import { ObjectId } from 'mongodb';
-import { error } from '@sveltejs/kit';
+import { error, redirect, fail } from '@sveltejs/kit';
 import { generateSpec } from '$lib/server/gemini';
 
-export const load = async ({ params }) => {
+export const load = async ({ params, locals }) => {
+    const session = await locals.auth();
+    if (!session?.user) {
+        throw redirect(303, "/");
+    }
+    const userId = session.user.email;
+
     const specsColl = await getSpecsCollection();
     let spec;
 
@@ -15,6 +21,11 @@ export const load = async ({ params }) => {
 
     if (!spec) {
         throw error(404, 'Spec not found');
+    }
+
+    // Ownership check
+    if (spec.userId && spec.userId !== userId) {
+        throw error(403, 'You do not have permission to view this spec');
     }
 
     // Function to generate and save spec
@@ -63,11 +74,24 @@ export const load = async ({ params }) => {
 };
 
 export const actions = {
-    update: async ({ request, params }) => {
+    update: async ({ request, params, locals }) => {
+        const session = await locals.auth();
+        if (!session?.user) {
+            return fail(401, { error: 'Unauthorized' });
+        }
+        const userId = session.user.email;
+
         const data = await request.formData();
         const updatedSpec = JSON.parse(data.get('spec'));
 
         const specsColl = await getSpecsCollection();
+
+        // Ownership check before update
+        const existing = await specsColl.findOne({ _id: new ObjectId(params.id) });
+        if (existing && existing.userId && existing.userId !== userId) {
+            return fail(403, { error: 'Forbidden' });
+        }
+
         await specsColl.updateOne(
             { _id: new ObjectId(params.id) },
             {
