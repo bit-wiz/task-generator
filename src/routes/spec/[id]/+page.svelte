@@ -35,12 +35,12 @@
 
     function addTask() {
         spec.tasks = [
-            ...spec.tasks,
             {
                 id: Math.random().toString(36).substr(2, 9),
-                title: "New task",
+                title: "",
                 group: "frontend",
             },
+            ...spec.tasks,
         ];
     }
 
@@ -53,7 +53,7 @@
     }
 
     function addUserStory() {
-        spec.userStories = [...spec.userStories, "New user story"];
+        spec.userStories = ["", ...spec.userStories];
     }
 
     function removeUserStory(index) {
@@ -61,7 +61,7 @@
     }
 
     function addRisk() {
-        spec.risks = [...spec.risks, "New risk or unknown"];
+        spec.risks = ["", ...spec.risks];
     }
 
     function removeRisk(index) {
@@ -213,7 +213,7 @@
                             </button>
                         </div>
                         <div class="space-y-4">
-                            {#each spec.userStories as story, i}
+                            {#each spec.userStories as _, i}
                                 <div
                                     class="group relative"
                                     transition:fly={{ x: -10 }}
@@ -250,7 +250,7 @@
                             </button>
                         </div>
                         <div class="space-y-4">
-                            {#each spec.risks as risk, i}
+                            {#each spec.risks as _, i}
                                 <div
                                     class="group relative"
                                     transition:fly={{ x: -10 }}
@@ -258,7 +258,7 @@
                                     <textarea
                                         bind:value={spec.risks[i]}
                                         class="w-full bg-red-500/5 border border-red-500/10 hover:border-red-500/30 rounded-2xl px-6 py-5 text-red-200/70 focus:ring-2 focus:ring-red-500/20 focus:border-red-500/50 transition-all min-h-[100px] resize-none leading-relaxed shadow-lg shadow-red-500/5"
-                                        placeholder="Unknown risk..."
+                                        placeholder="Add risk..."
                                     ></textarea>
                                     <button
                                         onclick={() => removeRisk(i)}
