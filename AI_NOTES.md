@@ -1,10 +1,10 @@
 # AI Notes
 
 ## LLM and Provider
-- **Model**: Gemini 2.0 Flash
+- **Model**: Gemini 2.5 Flash
 - **Provider**: Google AI Studio
 - **Why**: 
-    - **Speed**: Gemini 2.0 Flash provides fast task generation.
+    - **Speed**: Gemini 2.5 Flash provides fast task generation.
     - **Context Window**: Able to process large amounts of documentation or feedback.
     - **Cost**: Good price-to-performance ratio for structured data generation.
 
